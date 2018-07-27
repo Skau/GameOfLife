@@ -152,7 +152,6 @@ int main()
 						sf::Vector2i pos = sf::Mouse::getPosition(app_window);
 						if (pos.x  / 8 < ROWS && pos.x / 8 >= 0 && pos.y / 8 < COLUMNS && pos.y / 8 >= 0)
 						gridArray[pos.x / 8][pos.y / 8]->alive = !gridArray[pos.x / 8][pos.y / 8]->alive;
-						std::cout << pos.x / 8 << ", " << pos.y / 8 << std::endl;
 					}
 				}
 			}

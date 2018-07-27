@@ -3,131 +3,64 @@
 
 // * THE RULES * \\
 
-//For a space that is 'populated':
-//Each cell with one or no neighbors dies, as if by solitude.
-//Each cell with four or more neighbors dies, as if by overpopulation.
-//Each cell with two or three neighbors survives.
-
-//For a space that is 'empty' or 'unpopulated'
-//Each cell with three neighbors becomes populated.
+// If an occupied cell has zero or one neighbors, it dies of loneliness.
+// If an occupied cell has more than three neighbors, it dies of overcrowding.
+// If an empty cell has exactly three occupied neighbor cells, there is a birth of a new cell to replace the empty cell.
 
 struct Tile;
-typedef std::vector<std::vector<Tile*>> GridArray;
 
 
+// Number of rows / columns
 static const int ROWS = 100;
 static const int COLUMNS = 100;
 
+// Forward declaration of the grid
+std::vector<std::vector<Tile*>> gridArray;
+
+// Fixed time step stuff
+sf::Clock frameClock;
+const sf::Time timePerFrame = sf::seconds(1.0f / 20.f);
+sf::Time timeSinceLastUpdate;
+
+
+// What we fill the grid with
 struct Tile
 {
 	sf::Vector2f pos;
-	bool isPopulated;
+	bool alive;
 	int neighbors;
-
-	Tile(sf::Vector2f inPos) : pos{ inPos }, isPopulated{ false }, neighbors{ 0 }
+	bool nextAlive;
+	Tile(sf::Vector2f inPos) : pos{ inPos }, alive{ false }, nextAlive{ false }, neighbors { 0 }
 	{
-	}
-
-	int checkNeighbors(GridArray& gridArray)
-	{
-		neighbors = 0;
-
-		// Right neighbor
-		if ((pos.x + 8) / 8 < ROWS && (pos.x + 8) / 8 >= 0 && pos.y / 8 < COLUMNS && pos.y / 8 >= 0)
-		{
-			if (gridArray[((int)pos.x + 8) / 8][(int)pos.y / 8]->isPopulated)
-			{
-				neighbors++;
-			}
-		}
-
-		// Left neighbor
-		if ((pos.x - 8) / 8 < ROWS && (pos.x - 8) / 8 >= 0 && pos.y / 8 < COLUMNS && pos.y / 8 >= 0)
-		{
-			if (gridArray[((int)pos.x - 8) / 8][(int)pos.y / 8]->isPopulated)
-			{
-				neighbors++;
-			}
-		}
-
-		// Bottom Neighbor
-		if (pos.x / 8 < ROWS && pos.x / 8 >= 0 && (pos.y + 8) / 8 < COLUMNS && (pos.y + 8) / 8 >= 0)
-		{
-			if (gridArray[(int)pos.x / 8][((int)pos.y + 8) / 8]->isPopulated)
-			{
-				neighbors++;
-			}
-		}
-
-		// Top Neighbor
-		if (pos.x / 8 < ROWS && pos.x / 8 >= 0 && pos.x / 8 >= 0 && (pos.y - 8) / 8 < COLUMNS && (pos.y - 8) / 8 >= 0)
-		{
-			if (gridArray[(int)pos.x / 8][((int)pos.y - 8) / 8]->isPopulated)
-			{
-				neighbors++;
-			}
-		}
-
-		// Bottom right neighbor
-		if ((pos.x + 8) / 8 < ROWS && (pos.x + 8) / 8 >= 0 && (pos.y + 8) / 8 < COLUMNS && (pos.y + 8) / 8 >= 0)
-		{
-			if (gridArray[(int)(pos.x + 8) / 8][((int)pos.y + 8) / 8]->isPopulated)
-			{
-				neighbors++;
-			}
-		}
-
-		// Top right neighbor
-		if ((pos.x + 8) / 8 < ROWS && (pos.x + 8) / 8 >= 0 && (pos.y - 8) / 8 < COLUMNS && (pos.y - 8) / 8 >= 0)
-		{
-			if (gridArray[(int)(pos.x + 8) / 8][((int)pos.y - 8) / 8]->isPopulated)
-			{
-				neighbors++;
-			}
-		}
-
-		// Bottom Left neighbor
-		if ((pos.x - 8) / 8 < ROWS && (pos.x - 8) / 8 >= 0 && (pos.y + 8) / 8 < COLUMNS && (pos.y + 8) / 8 >= 0)
-		{
-			if (gridArray[(int)(pos.x - 8) / 8][((int)pos.y + 8) / 8]->isPopulated)
-			{
-				neighbors++;
-			}
-		}
-
-		// Top left neighbor
-		if ((pos.x - 8) / 8 < ROWS && (pos.x - 8) / 8 >= 0 && (pos.y - 8) / 8 < COLUMNS && (pos.y - 8) / 8 >= 0)
-		{
-			if (gridArray[(int)(pos.x - 8) / 8][((int)pos.y - 8) / 8]->isPopulated)
-			{
-				neighbors++;
-			}
-		}
-
-		return neighbors;
 	}
 };
 
+// Forward declaration of function
+int checkNeighbors(sf::Vector2f pos);
+
 int main()
 {
+	// Create window and set up the two sprites used
 	sf::RenderWindow window(sf::VideoMode(800, 800), "Conways Game of Life!");
+	sf::Image deadImage;
+	deadImage.loadFromFile("resources/unpopulatedImage.png");
+	sf::Texture deadTexture;
+	deadTexture.loadFromImage(deadImage);
+	sf::Sprite deadSprite;
+	deadSprite.setTexture(deadTexture);
+	sf::Image aliveImage;
+	aliveImage.loadFromFile("resources/populatedImage.png");
+	sf::Texture aliveTexture;
+	aliveTexture.loadFromImage(aliveImage);
+	sf::Sprite aliveSprite;
+	aliveSprite.setTexture(aliveTexture);
+	sf::Image deadImageBordered;
+	deadImageBordered.loadFromFile("resources/unpopulatedImagebordered.png");
 
-	sf::Image unpopulatedImage;
-	unpopulatedImage.loadFromFile("resources/unpopulatedImage.png");
-	sf::Texture unpopulatedTexture;
-	unpopulatedTexture.loadFromImage(unpopulatedImage);
-	sf::Sprite unpopulatedSprite;
-	unpopulatedSprite.setTexture(unpopulatedTexture);
-	sf::Image populatedImage;
-	populatedImage.loadFromFile("resources/populatedImage.png");
-	sf::Texture populatedTexture;
-	populatedTexture.loadFromImage(populatedImage);
-	sf::Sprite populatedSprite;
-	populatedSprite.setTexture(populatedTexture);
-
-	std::vector<std::vector<Tile*>> gridArray;
+	// Prepares the grid
 	gridArray.resize(ROWS, std::vector<Tile*>(COLUMNS));
 
+	// Fills the grid (offset of 8 because the image size is 8*8)
 	for (int i = 0; i < ROWS; i++)
 	{
 		for (int j = 0; j < COLUMNS; j++)
@@ -136,73 +69,197 @@ int main()
 		}
 	}
 
+	// Bool to start the simulation (toggled with spacebar) 
 	bool isSimulating = false;
 
 	while (window.isOpen())
 	{
-		sf::Event event;
-		while (window.pollEvent(event))
+		timeSinceLastUpdate += frameClock.restart();
+		while (timeSinceLastUpdate > timePerFrame)
 		{
-			if (event.type == sf::Event::Closed)
-				window.close();
-			if (event.type == sf::Event::KeyPressed && event.key.code == sf::Keyboard::Space)
-				isSimulating = !isSimulating;
-			if (!isSimulating)
+			timeSinceLastUpdate -= timePerFrame;
+
+			sf::Event event;
+			while (window.pollEvent(event))
 			{
-				if (event.type == sf::Event::MouseButtonPressed)
+				if (event.type == sf::Event::Closed)
+					window.close();
+				if (event.type == sf::Event::KeyPressed && event.key.code == sf::Keyboard::Space)
+					isSimulating = !isSimulating;
+				if (event.type == sf::Event::KeyPressed && event.key.code == sf::Keyboard::R)
 				{
-					if (event.key.code == sf::Mouse::Button::Left)
+					for (int i = 0; i < ROWS; i++)
 					{
-						sf::Vector2i pos = sf::Mouse::getPosition(window);
-						std::cout << pos.x / 8 << ", " << pos.y / 8 << std::endl;
-						gridArray[pos.x / 8][pos.y / 8]->isPopulated = !gridArray[pos.x / 8][pos.y / 8]->isPopulated;
+						for (int j = 0; j < COLUMNS; j++)
+						{
+							gridArray[i][j]->alive = false;
+						}
 					}
-					else if (event.key.code == sf::Mouse::Button::Right)
+
+					if (isSimulating)
+						isSimulating = false;
+				}
+				// Can only add new tiles when not simulating
+				if (!isSimulating)
+				{
+					if (event.type == sf::Event::MouseButtonPressed)
 					{
-						sf::Vector2i pos = sf::Mouse::getPosition(window);
-						std::cout << gridArray[pos.x / 8][pos.y / 8]->checkNeighbors(gridArray) << std::endl;
+						if (event.key.code == sf::Mouse::Button::Left)
+						{
+							sf::Vector2i pos = sf::Mouse::getPosition(window);
+							std::cout << pos.x << ", " << pos.y << std::endl;
+							gridArray[pos.x / 8][pos.y / 8]->alive = !gridArray[pos.x / 8][pos.y / 8]->alive;
+						}
 					}
 				}
 			}
-		}
 
-		if (isSimulating)
-		{
+			// The simulation
+			if (isSimulating)
+			{
+				// Check neighbors and set next state
+				for (int i = 0; i < ROWS; i++)
+				{
+					for (int j = 0; j < COLUMNS; j++)
+					{
+						int neighbors = checkNeighbors(gridArray[i][j]->pos);
+						if (gridArray[i][j]->alive)
+						{
+							if (neighbors < 2 || neighbors > 3)
+								gridArray[i][j]->nextAlive = false;
+							else
+								gridArray[i][j]->nextAlive = true;
+						}
+						else
+						{
+							if (neighbors == 3)
+								gridArray[i][j]->nextAlive = true;
+							else
+								gridArray[i][j]->nextAlive = false;
+						}
+					}
+				}
+
+				// Set the next state to current state
+				for (int i = 0; i < ROWS; i++)
+				{
+					for (int j = 0; j < COLUMNS; j++)
+					{
+						gridArray[i][j]->alive = gridArray[i][j]->nextAlive;
+					}
+				}
+			}
+
+			window.clear();
+
+			if (isSimulating)
+				deadTexture.loadFromImage(deadImage);
+			else
+				deadTexture.loadFromImage(deadImageBordered);
+
+			// Render the grid
 			for (int i = 0; i < ROWS; i++)
 			{
 				for (int j = 0; j < COLUMNS; j++)
 				{
-					int neighbors = gridArray[i][j]->checkNeighbors(gridArray);
-					if (neighbors <= 1 || neighbors >= 4)
-					if (neighbors == 2 || neighbors == 3)
-						gridArray[i][j]->isPopulated = true;
+					if (gridArray[i][j]->alive)
+					{
+						aliveSprite.setPosition(gridArray[i][j]->pos);
+						window.draw(aliveSprite);
+					}
+					else
+					{
+						deadSprite.setPosition(gridArray[i][j]->pos);
+						window.draw(deadSprite);
+					}
+
 				}
 			}
+
+			window.display();
 		}
-	
-
-		window.clear();
-
-		for (int i = 0; i < ROWS; i++)
-		{
-			for (int j = 0; j < COLUMNS; j++)
-			{
-				if (gridArray[i][j]->isPopulated)
-				{
-					populatedSprite.setPosition(gridArray[i][j]->pos);
-					window.draw(populatedSprite);
-				}
-				else
-				{
-					unpopulatedSprite.setPosition(gridArray[i][j]->pos);
-					window.draw(unpopulatedSprite);
-				}
-
-			}
-		}
-
-		window.display();
 	}
 
 	return 0;
+}
+
+int checkNeighbors(sf::Vector2f pos)
+{
+	int neighbors = 0;
+
+	// Right neighbor
+	if ((pos.x + 8) / 8 < ROWS && (pos.x + 8) / 8 >= 0 && pos.y / 8 < COLUMNS && pos.y / 8 >= 0)
+	{
+		if (gridArray[((int)pos.x + 8) / 8][(int)pos.y / 8]->alive)
+		{
+			neighbors++;
+		}
+	}
+
+	// Left neighbor
+	if ((pos.x - 8) / 8 < ROWS && (pos.x - 8) / 8 >= 0 && pos.y / 8 < COLUMNS && pos.y / 8 >= 0)
+	{
+		if (gridArray[((int)pos.x - 8) / 8][(int)pos.y / 8]->alive)
+		{
+			neighbors++;
+		}
+	}
+
+	// Bottom Neighbor
+	if (pos.x / 8 < ROWS && pos.x / 8 >= 0 && (pos.y + 8) / 8 < COLUMNS && (pos.y + 8) / 8 >= 0)
+	{
+		if (gridArray[(int)pos.x / 8][((int)pos.y + 8) / 8]->alive)
+		{
+			neighbors++;
+		}
+	}
+
+	// Top Neighbor
+	if (pos.x / 8 < ROWS && pos.x / 8 >= 0 && pos.x / 8 >= 0 && (pos.y - 8) / 8 < COLUMNS && (pos.y - 8) / 8 >= 0)
+	{
+		if (gridArray[(int)pos.x / 8][((int)pos.y - 8) / 8]->alive)
+		{
+			neighbors++;
+		}
+	}
+
+	// Bottom right neighbor
+	if ((pos.x + 8) / 8 < ROWS && (pos.x + 8) / 8 >= 0 && (pos.y + 8) / 8 < COLUMNS && (pos.y + 8) / 8 >= 0)
+	{
+		if (gridArray[(int)(pos.x + 8) / 8][((int)pos.y + 8) / 8]->alive)
+		{
+			neighbors++;
+		}
+	}
+
+	// Top right neighbor
+	if ((pos.x + 8) / 8 < ROWS && (pos.x + 8) / 8 >= 0 && (pos.y - 8) / 8 < COLUMNS && (pos.y - 8) / 8 >= 0)
+	{
+		if (gridArray[(int)(pos.x + 8) / 8][((int)pos.y - 8) / 8]->alive)
+		{
+			neighbors++;
+		}
+	}
+
+	// Bottom Left neighbor
+	if ((pos.x - 8) / 8 < ROWS && (pos.x - 8) / 8 >= 0 && (pos.y + 8) / 8 < COLUMNS && (pos.y + 8) / 8 >= 0)
+	{
+		if (gridArray[(int)(pos.x - 8) / 8][((int)pos.y + 8) / 8]->alive)
+		{
+			neighbors++;
+		}
+	}
+
+	// Top left neighbor
+	if ((pos.x - 8) / 8 < ROWS && (pos.x - 8) / 8 >= 0 && (pos.y - 8) / 8 < COLUMNS && (pos.y - 8) / 8 >= 0)
+	{
+		if (gridArray[(int)(pos.x - 8) / 8][((int)pos.y - 8) / 8]->alive)
+		{
+			neighbors++;
+		}
+	}
+
+	gridArray[pos.x / 8][pos.y / 8]->neighbors = neighbors;
+
+	return neighbors;
 }
